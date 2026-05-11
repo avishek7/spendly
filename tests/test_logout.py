@@ -38,7 +38,7 @@ def test_login_get_while_authenticated_redirects(client):
     })
     resp = client.get("/login")
     assert resp.status_code == 302
-    assert resp.headers["Location"] == "/"
+    assert resp.headers["Location"] == "/profile"
 
 
 def test_register_get_while_authenticated_redirects(client):
@@ -49,4 +49,4 @@ def test_register_get_while_authenticated_redirects(client):
     })
     resp = client.get("/register")
     assert resp.status_code == 302
-    assert resp.headers["Location"] == "/"
+    assert resp.headers["Location"] == "/profile"
