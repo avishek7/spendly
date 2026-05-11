@@ -37,8 +37,10 @@ def register():
         password_hash = generate_password_hash(password)
         user_id = create_user(name, email, password_hash)
         session["user_id"] = user_id
-        return redirect(url_for("profile"))
+        return redirect(url_for("landing"))
 
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
     return render_template("register.html")
 
 
@@ -60,8 +62,10 @@ def login():
             return render_template("login.html", error=error)
 
         session["user_id"] = user["id"]
-        return redirect(url_for("profile"))
+        return redirect(url_for("landing"))
 
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
     return render_template("login.html")
 
 
@@ -81,7 +85,10 @@ def privacy():
 
 @app.route("/logout")
 def logout():
-    return "Logout — coming in Step 3"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    session.clear()
+    return redirect(url_for("landing"))
 
 
 @app.route("/profile")
