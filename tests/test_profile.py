@@ -1,4 +1,5 @@
 import re
+import database.db as db_module
 
 
 def _register(client):
@@ -7,6 +8,26 @@ def _register(client):
         "email": "grace@example.com",
         "password": "securepass",
     })
+
+
+def _seed_expenses():
+    conn = db_module.get_db()
+    user_row = conn.execute(
+        "SELECT id FROM users WHERE email = ?", ("grace@example.com",)
+    ).fetchone()
+    user_id = user_row["id"]
+    conn.executemany(
+        "INSERT INTO expenses (user_id, amount, category, date, description)"
+        " VALUES (?, ?, ?, ?, ?)",
+        [
+            (user_id, 22.40, "Food",          "2026-05-10", "Lunch at cafe"),
+            (user_id, 65.99, "Shopping",      "2026-05-08", "New running shoes"),
+            (user_id, 18.75, "Entertainment", "2026-05-07", "Cinema ticket"),
+            (user_id, 30.00, "Health",        "2026-05-05", "Pharmacy vitamins"),
+        ],
+    )
+    conn.commit()
+    conn.close()
 
 
 def test_profile_unauthenticated_redirects_to_login(client):
@@ -38,18 +59,21 @@ def test_profile_contains_three_stats(client):
 
 def test_profile_contains_transaction_table_rows(client):
     _register(client)
+    _seed_expenses()
     resp = client.get("/profile")
     assert resp.data.count(b"profile-td-date") >= 3
 
 
 def test_profile_contains_category_breakdown(client):
     _register(client)
+    _seed_expenses()
     resp = client.get("/profile")
     assert resp.data.count(b"profile-breakdown-row") >= 3
 
 
 def test_profile_contains_category_badges(client):
     _register(client)
+    _seed_expenses()
     resp = client.get("/profile")
     assert b"profile-badge" in resp.data
 

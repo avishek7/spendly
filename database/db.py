@@ -73,6 +73,36 @@ def seed_db():
     conn.close()
 
 
+def get_categories_by_user(user_id):
+    conn = get_db()
+    total_row = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0.0) AS total"
+        " FROM expenses WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+    total = total_row["total"]
+
+    rows = conn.execute(
+        "SELECT category, SUM(amount) AS cat_total"
+        " FROM expenses WHERE user_id = ?"
+        " GROUP BY category ORDER BY cat_total DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        cat_total = row["cat_total"]
+        percent = int(cat_total / total * 100) if total > 0 else 0
+        result.append({
+            "name":    row["category"],
+            "key":     row["category"].lower(),
+            "amount":  cat_total,
+            "percent": percent,
+        })
+    return result
+
+
 def create_user(name, email, password_hash):
     conn = get_db()
     cursor = conn.execute(
@@ -85,6 +115,33 @@ def create_user(name, email, password_hash):
     return user_id
 
 
+def get_stats_by_user(user_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0.0) AS total_spent,"
+        " COUNT(*) AS transaction_count"
+        " FROM expenses WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+    total_spent = row["total_spent"]
+    transaction_count = row["transaction_count"]
+
+    top_row = conn.execute(
+        "SELECT category, SUM(amount) AS cat_total"
+        " FROM expenses WHERE user_id = ?"
+        " GROUP BY category ORDER BY cat_total DESC LIMIT 1",
+        (user_id,)
+    ).fetchone()
+    top_category = top_row["category"] if top_row else ""
+
+    conn.close()
+    return {
+        "total_spent":       total_spent,
+        "transaction_count": transaction_count,
+        "top_category":      top_category,
+    }
+
+
 def get_user_by_email(email):
     conn = get_db()
     row = conn.execute(
@@ -92,3 +149,34 @@ def get_user_by_email(email):
     ).fetchone()
     conn.close()
     return row
+
+
+def get_user_by_id(user_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def get_expenses_by_user(user_id):
+    from datetime import datetime
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, amount, category, date, description"
+        " FROM expenses WHERE user_id = ? ORDER BY date DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        dt = datetime.strptime(row["date"], "%Y-%m-%d")
+        result.append({
+            "date":         f"{dt.day} {dt.strftime('%b %Y')}",
+            "description":  row["description"] or "",
+            "category":     row["category"],
+            "category_key": row["category"].lower(),
+            "amount":       row["amount"],
+        })
+    return result
