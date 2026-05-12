@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, abort
 from werkzeug.security import generate_password_hash, check_password_hash
-from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+from datetime import datetime
+from database.db import get_db, init_db, seed_db, create_user, get_user_by_email, \
+    get_user_by_id, get_expenses_by_user, get_stats_by_user, get_categories_by_user
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-change-in-prod"
@@ -96,34 +98,49 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
+    db_user = get_user_by_id(session["user_id"])
+    if db_user is None:
+        abort(404)
+
+    created_at = datetime.strptime(db_user["created_at"][:19], "%Y-%m-%d %H:%M:%S")
+    member_since = created_at.strftime("%B %Y")
+    initials = "".join(word[0].upper() for word in db_user["name"].split() if word)
+
     user = {
-        "name":         "Nitish Kumar",
-        "email":        "nitish@example.com",
-        "initials":     "NK",
-        "member_since": "January 2025",
+        "name":         db_user["name"],
+        "email":        db_user["email"],
+        "initials":     initials,
+        "member_since": member_since,
     }
 
+    raw_stats = get_stats_by_user(session["user_id"])
     stats = {
-        "total_spent":       "₹18,450",
-        "transaction_count": 34,
-        "top_category":      "Food",
+        "total_spent":       f"₹{raw_stats['total_spent']:,.2f}",
+        "transaction_count": raw_stats["transaction_count"],
+        "top_category":      raw_stats["top_category"],
     }
 
+    raw_transactions = get_expenses_by_user(session["user_id"])
     transactions = [
-        {"date": "10 May 2026", "description": "Lunch at Cafe",      "category": "Food",          "category_key": "food",          "amount": "₹22.40"},
-        {"date": "08 May 2026", "description": "New running shoes",   "category": "Shopping",      "category_key": "shopping",      "amount": "₹65.99"},
-        {"date": "07 May 2026", "description": "Cinema ticket",       "category": "Entertainment", "category_key": "entertainment", "amount": "₹18.75"},
-        {"date": "05 May 2026", "description": "Pharmacy — vitamins", "category": "Health",        "category_key": "health",        "amount": "₹30.00"},
-        {"date": "03 May 2026", "description": "Electricity bill",    "category": "Bills",         "category_key": "bills",         "amount": "₹120.00"},
-        {"date": "02 May 2026", "description": "Monthly bus pass",    "category": "Transport",     "category_key": "transport",     "amount": "₹45.00"},
+        {
+            "date":         tx["date"],
+            "description":  tx["description"],
+            "category":     tx["category"],
+            "category_key": tx["category_key"],
+            "amount":       f"₹{tx['amount']:,.2f}",
+        }
+        for tx in raw_transactions
     ]
 
+    raw_categories = get_categories_by_user(session["user_id"])
     categories = [
-        {"name": "Food",          "key": "food",          "amount": "₹6,240", "percent": 78},
-        {"name": "Bills",         "key": "bills",         "amount": "₹4,800", "percent": 60},
-        {"name": "Transport",     "key": "transport",     "amount": "₹3,600", "percent": 45},
-        {"name": "Shopping",      "key": "shopping",      "amount": "₹2,200", "percent": 28},
-        {"name": "Entertainment", "key": "entertainment", "amount": "₹1,610", "percent": 20},
+        {
+            "name":    cat["name"],
+            "key":     cat["key"],
+            "amount":  f"₹{cat['amount']:,.2f}",
+            "percent": cat["percent"],
+        }
+        for cat in raw_categories
     ]
 
     return render_template("profile.html", user=user, stats=stats,
