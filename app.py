@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, session, redirect, url_for, abort
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 from database.db import get_db, init_db, seed_db, create_user, get_user_by_email, \
     get_user_by_id, get_expenses_by_user, get_stats_by_user, get_categories_by_user
 
@@ -113,14 +113,56 @@ def profile():
         "member_since": member_since,
     }
 
-    raw_stats = get_stats_by_user(session["user_id"])
+    period   = request.args.get("period", "all")
+    raw_from = request.args.get("from", "").strip()
+    raw_to   = request.args.get("to",   "").strip()
+
+    today = datetime.today().date()
+
+    date_from = date_to = None
+    if raw_from and raw_to:
+        try:
+            date_from = datetime.strptime(raw_from, "%Y-%m-%d").date()
+            date_to   = datetime.strptime(raw_to,   "%Y-%m-%d").date()
+        except ValueError:
+            date_from = date_to = None
+
+    if date_from and date_to:
+        df_str        = date_from.strftime("%Y-%m-%d")
+        dt_str        = date_to.strftime("%Y-%m-%d")
+        filter_label  = f"{date_from.strftime('%d %b %Y')} – {date_to.strftime('%d %b %Y')}"
+        active_period = "custom"
+    else:
+        if period not in ("7d", "30d", "month", "all"):
+            period = "all"
+        if period == "7d":
+            df_str        = (today - timedelta(days=6)).strftime("%Y-%m-%d")
+            dt_str        = today.strftime("%Y-%m-%d")
+            filter_label  = "Last 7 days"
+            active_period = "7d"
+        elif period == "30d":
+            df_str        = (today - timedelta(days=29)).strftime("%Y-%m-%d")
+            dt_str        = today.strftime("%Y-%m-%d")
+            filter_label  = "Last 30 days"
+            active_period = "30d"
+        elif period == "month":
+            df_str        = today.replace(day=1).strftime("%Y-%m-%d")
+            dt_str        = today.strftime("%Y-%m-%d")
+            filter_label  = "This month"
+            active_period = "month"
+        else:
+            df_str = dt_str = None
+            filter_label  = "All time"
+            active_period = "all"
+
+    raw_stats = get_stats_by_user(session["user_id"], date_from=df_str, date_to=dt_str)
     stats = {
         "total_spent":       f"₹{raw_stats['total_spent']:,.2f}",
         "transaction_count": raw_stats["transaction_count"],
         "top_category":      raw_stats["top_category"],
     }
 
-    raw_transactions = get_expenses_by_user(session["user_id"])
+    raw_transactions = get_expenses_by_user(session["user_id"], date_from=df_str, date_to=dt_str)
     transactions = [
         {
             "date":         tx["date"],
@@ -132,7 +174,7 @@ def profile():
         for tx in raw_transactions
     ]
 
-    raw_categories = get_categories_by_user(session["user_id"])
+    raw_categories = get_categories_by_user(session["user_id"], date_from=df_str, date_to=dt_str)
     categories = [
         {
             "name":    cat["name"],
@@ -144,7 +186,9 @@ def profile():
     ]
 
     return render_template("profile.html", user=user, stats=stats,
-                           transactions=transactions, categories=categories)
+                           transactions=transactions, categories=categories,
+                           filter_label=filter_label, active_period=active_period,
+                           raw_from=raw_from, raw_to=raw_to)
 
 
 @app.route("/expenses/add")
