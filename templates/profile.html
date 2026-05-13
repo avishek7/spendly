@@ -37,6 +37,28 @@
       </div>
     </div>
 
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <div class="filter-presets">
+        <a href="?period=7d"    class="filter-btn{% if active_period == '7d'    %} active{% endif %}">Last 7 days</a>
+        <a href="?period=30d"   class="filter-btn{% if active_period == '30d'   %} active{% endif %}">Last 30 days</a>
+        <a href="?period=month" class="filter-btn{% if active_period == 'month' %} active{% endif %}">This month</a>
+        <a href="?period=all"   class="filter-btn{% if active_period == 'all'   %} active{% endif %}">All time</a>
+      </div>
+      <form class="filter-custom{% if active_period == 'custom' %} active{% endif %}" method="GET" action="{{ url_for('profile') }}">
+        <label class="filter-date-label" for="from-date">From</label>
+        <input class="filter-date-input" type="date" id="from-date" name="from" value="{{ raw_from }}">
+        <label class="filter-date-label" for="to-date">To</label>
+        <input class="filter-date-input" type="date" id="to-date"   name="to"   value="{{ raw_to }}">
+        <button class="filter-apply-btn" type="submit">Apply</button>
+      </form>
+    </div>
+
+    <!-- Filter label -->
+    <div class="filter-label-row">
+      <span class="filter-label-text">Showing: {{ filter_label }}</span>
+    </div>
+
     <!-- Section 3: Transaction History Table -->
     <div class="profile-section">
       <div class="profile-section-header">

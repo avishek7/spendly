@@ -73,21 +73,25 @@ def seed_db():
     conn.close()
 
 
-def get_categories_by_user(user_id):
+def get_categories_by_user(user_id, date_from=None, date_to=None):
     conn = get_db()
-    total_row = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0.0) AS total"
-        " FROM expenses WHERE user_id = ?",
-        (user_id,)
-    ).fetchone()
+
+    sql = "SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses WHERE user_id = ?"
+    params = (user_id,)
+    if date_from and date_to:
+        sql    += " AND date BETWEEN ? AND ?"
+        params += (date_from, date_to)
+    total_row = conn.execute(sql, params).fetchone()
     total = total_row["total"]
 
-    rows = conn.execute(
-        "SELECT category, SUM(amount) AS cat_total"
-        " FROM expenses WHERE user_id = ?"
-        " GROUP BY category ORDER BY cat_total DESC",
-        (user_id,)
-    ).fetchall()
+    sql2    = ("SELECT category, SUM(amount) AS cat_total"
+               " FROM expenses WHERE user_id = ?")
+    params2 = (user_id,)
+    if date_from and date_to:
+        sql2    += " AND date BETWEEN ? AND ?"
+        params2 += (date_from, date_to)
+    sql2 += " GROUP BY category ORDER BY cat_total DESC"
+    rows = conn.execute(sql2, params2).fetchall()
     conn.close()
 
     result = []
@@ -115,23 +119,28 @@ def create_user(name, email, password_hash):
     return user_id
 
 
-def get_stats_by_user(user_id):
+def get_stats_by_user(user_id, date_from=None, date_to=None):
     conn = get_db()
-    row = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0.0) AS total_spent,"
-        " COUNT(*) AS transaction_count"
-        " FROM expenses WHERE user_id = ?",
-        (user_id,)
-    ).fetchone()
-    total_spent = row["total_spent"]
+
+    sql    = ("SELECT COALESCE(SUM(amount), 0.0) AS total_spent,"
+              " COUNT(*) AS transaction_count"
+              " FROM expenses WHERE user_id = ?")
+    params = (user_id,)
+    if date_from and date_to:
+        sql    += " AND date BETWEEN ? AND ?"
+        params += (date_from, date_to)
+    row = conn.execute(sql, params).fetchone()
+    total_spent       = row["total_spent"]
     transaction_count = row["transaction_count"]
 
-    top_row = conn.execute(
-        "SELECT category, SUM(amount) AS cat_total"
-        " FROM expenses WHERE user_id = ?"
-        " GROUP BY category ORDER BY cat_total DESC LIMIT 1",
-        (user_id,)
-    ).fetchone()
+    sql2    = ("SELECT category, SUM(amount) AS cat_total"
+               " FROM expenses WHERE user_id = ?")
+    params2 = (user_id,)
+    if date_from and date_to:
+        sql2    += " AND date BETWEEN ? AND ?"
+        params2 += (date_from, date_to)
+    sql2 += " GROUP BY category ORDER BY cat_total DESC LIMIT 1"
+    top_row      = conn.execute(sql2, params2).fetchone()
     top_category = top_row["category"] if top_row else ""
 
     conn.close()
@@ -160,14 +169,18 @@ def get_user_by_id(user_id):
     return row
 
 
-def get_expenses_by_user(user_id):
+def get_expenses_by_user(user_id, date_from=None, date_to=None):
     from datetime import datetime
     conn = get_db()
-    rows = conn.execute(
-        "SELECT id, amount, category, date, description"
-        " FROM expenses WHERE user_id = ? ORDER BY date DESC",
-        (user_id,)
-    ).fetchall()
+
+    sql    = ("SELECT id, amount, category, date, description"
+              " FROM expenses WHERE user_id = ?")
+    params = (user_id,)
+    if date_from and date_to:
+        sql    += " AND date BETWEEN ? AND ?"
+        params += (date_from, date_to)
+    sql += " ORDER BY date DESC"
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     result = []
     for row in rows:
