@@ -151,6 +151,18 @@ def get_stats_by_user(user_id, date_from=None, date_to=None):
     }
 
 
+def add_expense(user_id, amount, category, expense_date, description):
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+        (user_id, amount, category, expense_date, description),
+    )
+    conn.commit()
+    expense_id = cursor.lastrowid
+    conn.close()
+    return expense_id
+
+
 def get_user_by_email(email):
     conn = get_db()
     row = conn.execute(

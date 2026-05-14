@@ -63,7 +63,10 @@
     <div class="profile-section">
       <div class="profile-section-header">
         <h2 class="profile-section-title">Recent transactions</h2>
-        <span class="profile-section-count">{{ transactions | length }} shown</span>
+        <div class="transactions-header-right">
+          <span class="profile-section-count">{{ transactions | length }} shown</span>
+          <a href="{{ url_for('add_expense') }}" class="nav-cta btn-add-expense">+ Add expense</a>
+        </div>
       </div>
       <div class="profile-table-wrap">
         <table class="profile-table">
