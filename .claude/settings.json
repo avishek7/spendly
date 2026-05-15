@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; echo \"$f\" | grep -qE '\\.py$' && /Library/Frameworks/Python.framework/Versions/3.13/bin/ruff format \"$f\" && /Library/Frameworks/Python.framework/Versions/3.13/bin/ruff check --fix --exit-zero \"$f\"; } 2>/dev/null || true",
+            "statusMessage": "Formatting and linting..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT_COMMAND\" | grep -qE '(rm|unlink|del).*spendly\\.db'; then echo 'ERROR: Deleting spendly.db is not allowed. This is the live database for the Spendly app. If you need a fresh DB, run flask shell and call init_db() instead.' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
