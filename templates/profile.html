@@ -76,6 +76,7 @@
               <th>Description</th>
               <th>Category</th>
               <th class="profile-th-amount">Amount</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -89,6 +90,9 @@
                 </span>
               </td>
               <td class="profile-td-amount">{{ tx.amount }}</td>
+              <td class="profile-td-actions">
+                <a href="{{ url_for('edit_expense', id=tx.id) }}" class="profile-action-link">Edit</a>
+              </td>
             </tr>
             {% endfor %}
           </tbody>

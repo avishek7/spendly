@@ -12,6 +12,8 @@ from database.db import (
     get_stats_by_user,
     get_categories_by_user,
     add_expense as db_add_expense,
+    get_expense_by_id,
+    update_expense as db_update_expense,
 )
 
 app = Flask(__name__)
@@ -191,6 +193,7 @@ def profile():
     )
     transactions = [
         {
+            "id": tx["id"],
             "date": tx["date"],
             "description": tx["description"],
             "category": tx["category"],
@@ -288,9 +291,71 @@ def add_expense():
     )
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(id)
+    if expense is None:
+        abort(404)
+    if expense["user_id"] != session["user_id"]:
+        abort(403)
+
+    if request.method == "POST":
+        amount_raw = request.form.get("amount", "").strip()
+        category = request.form.get("category", "").strip()
+        date = request.form.get("date", "").strip()
+        description_raw = request.form.get("description", "").strip()
+        description = description_raw or None
+
+        error = None
+        amount = None
+
+        try:
+            amount = float(amount_raw)
+            if amount <= 0:
+                error = "Amount must be a positive number."
+        except ValueError:
+            error = "Amount must be a valid number."
+
+        if not error and category not in VALID_CATEGORIES:
+            error = "Please select a valid category."
+
+        if not error:
+            try:
+                datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                error = "Please enter a valid date."
+
+        if error:
+            return render_template(
+                "edit_expense.html",
+                error=error,
+                categories=VALID_CATEGORIES,
+                expense_id=id,
+                form={
+                    "amount": amount_raw,
+                    "category": category,
+                    "date": date,
+                    "description": description_raw,
+                },
+            )
+
+        db_update_expense(id, session["user_id"], amount, category, date, description)
+        return redirect(url_for("profile"))
+
+    return render_template(
+        "edit_expense.html",
+        categories=VALID_CATEGORIES,
+        expense_id=id,
+        form={
+            "amount": expense["amount"],
+            "category": expense["category"],
+            "date": expense["date"],
+            "description": expense["description"] or "",
+        },
+    )
 
 
 @app.route("/expenses/<int:id>/delete")
